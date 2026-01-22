@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension (clean)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--new-window",
+        "--disable-extensions",
+        "--user-data-dir",
+        "${workspaceFolder}/.vscode-devhost-userdata",
+        "--extensions-dir",
+        "${workspaceFolder}/.vscode-devhost-extensions",
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${workspaceFolder}"
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"]
+    }
+  ]
+}

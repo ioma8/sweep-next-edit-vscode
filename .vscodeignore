@@ -1,0 +1,8 @@
+**/.DS_Store
+**/*.ts
+src/**
+docs.txt
+run_model.py
+sweep-next-edit-*.gguf
+node_modules/**
+

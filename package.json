@@ -1,0 +1,97 @@
+{
+  "name": "sweep-next-edit-vscode",
+  "displayName": "Sweep Next Edit",
+  "description": "Next-edit prediction inline suggestions powered by Sweep Next-Edit 1.5B (local GGUF via llama.cpp).",
+  "version": "0.0.1",
+  "publisher": "local",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Sweep Next Edit",
+      "properties": {
+        "sweepNextEdit.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Sweep Next Edit inline suggestions."
+        },
+        "sweepNextEdit.modelPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Sweep Next-Edit GGUF model file (e.g. sweep-next-edit-1.5b.q8_0.v2.gguf). If empty, the extension will look for the file in the first workspace folder."
+        },
+        "sweepNextEdit.contextLines": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Number of lines above/below the cursor to include (Sweep format uses 10)."
+        },
+        "sweepNextEdit.maxTokens": {
+          "type": "number",
+          "default": 512,
+          "minimum": 1,
+          "maximum": 2048,
+          "description": "Maximum tokens to generate for the updated window."
+        },
+        "sweepNextEdit.logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Write debug logs to the 'Sweep Next Edit' output channel."
+        },
+        "sweepNextEdit.triggerDebounceMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Debounce (ms) after typing before triggering inline suggestions."
+        },
+        "sweepNextEdit.ignoreAutomaticTrigger": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ignore VS Code automatic inline completion triggers; only respond to explicit triggers (used by this extension)."
+        },
+        "sweepNextEdit.contextFileCount": {
+          "type": "number",
+          "default": 4,
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Number of other open workspace files to include as context."
+        },
+        "sweepNextEdit.contextFileMaxChars": {
+          "type": "number",
+          "default": 8000,
+          "minimum": 0,
+          "maximum": 200000,
+          "description": "Max characters to include per context file."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "node-llama-cpp": "^3.12.1"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.13.1",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.1",
+    "mocha": "^10.8.2",
+    "typescript": "^5.7.3"
+  }
+}

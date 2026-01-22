@@ -1,0 +1,10 @@
+node_modules
+out
+.DS_Store
+.vscode-test
+.vscode-devhost-userdata
+.vscode-devhost-extensions
+docs.txt
+run_model.py
+*.gguf
+sweep/
