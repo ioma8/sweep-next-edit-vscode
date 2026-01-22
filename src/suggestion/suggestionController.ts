@@ -67,26 +67,27 @@ export class SuggestionController implements vscode.Disposable {
   async acceptSuggestion() {
     const editor = vscode.window.activeTextEditor;
     if (!editor || !this.suggestion) return;
-    if (editor.document.uri.toString() !== this.suggestion.docUri) return;
-    if (editor.document.version !== this.suggestion.docVersion) {
+    const suggestion = this.suggestion;
+    if (editor.document.uri.toString() !== suggestion.docUri) return;
+    if (editor.document.version !== suggestion.docVersion) {
       this.logger.warn(
-        `Skipping accept: document version changed (expected=${this.suggestion.docVersion}, actual=${editor.document.version}).`
+        `Skipping accept: document version changed (expected=${suggestion.docVersion}, actual=${editor.document.version}).`
       );
       this.clearSuggestion("stale version");
       return;
     }
 
-    this.invalidate("accepting");
+    this.cancelInferences("accepting");
     this.applyingSuggestion = true;
     const doc = editor.document;
-    const start = new vscode.Position(Math.max(0, this.suggestion.windowStartLine), 0);
+    const start = new vscode.Position(Math.max(0, suggestion.windowStartLine), 0);
     const end =
-      this.suggestion.windowEndLineExclusive < doc.lineCount
-        ? new vscode.Position(Math.max(0, this.suggestion.windowEndLineExclusive), 0)
+      suggestion.windowEndLineExclusive < doc.lineCount
+        ? new vscode.Position(Math.max(0, suggestion.windowEndLineExclusive), 0)
         : doc.lineAt(doc.lineCount - 1).range.end;
 
     const edit = new vscode.WorkspaceEdit();
-    edit.replace(doc.uri, new vscode.Range(start, end), this.suggestion.predictedWindow);
+    edit.replace(doc.uri, new vscode.Range(start, end), suggestion.predictedWindow);
     try {
       const ok = await vscode.workspace.applyEdit(edit);
       this.logger.info(`Accepted suggestion (ok=${String(ok)}).`);
@@ -112,6 +113,13 @@ export class SuggestionController implements vscode.Disposable {
     this.clearTimer();
     this.abortInFlight();
     this.clearSuggestion(reason);
+  }
+
+  private cancelInferences(reason: string) {
+    this.requestSeq++;
+    this.clearTimer();
+    this.abortInFlight();
+    this.logger.info(`Cancelled pending inference (${reason}).`);
   }
 
   private clearSuggestion(reason: string) {
