@@ -40,6 +40,7 @@ export class SuggestionController implements vscode.Disposable {
     this.disposables.push(
       vscode.window.onDidChangeTextEditorSelection((e) => {
         if (e.textEditor.document.uri.toString() !== vscode.window.activeTextEditor?.document.uri.toString()) return;
+        if (this.triggerTimer) return;
         this.invalidate("cursor moved");
       })
     );
@@ -106,11 +107,14 @@ export class SuggestionController implements vscode.Disposable {
   }
 
   private clearSuggestion(reason: string) {
+    const hadSuggestion = this.suggestion != null;
     this.suggestion = undefined;
     void vscode.commands.executeCommand("setContext", "sweepNextEdit.suggestionActive", false);
     const editor = vscode.window.activeTextEditor;
     if (editor) editor.setDecorations(this.decorationType, []);
-    this.logger.info(`Cleared suggestion (${reason}).`);
+    if (hadSuggestion || reason !== "typing") {
+      this.logger.info(`Cleared suggestion (${reason}).`);
+    }
   }
 
   private getDocumentDisplayPath(document: vscode.TextDocument): string {
