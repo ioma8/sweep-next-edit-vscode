@@ -2,9 +2,9 @@ import * as vscode from "vscode";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { DocumentTextStore } from "./provider/documentTextStore";
-import { NextEditInlineProvider } from "./provider/nextEditInlineProvider";
 import { LlamaCppNextEditPredictor } from "./model/llamaCppNextEditPredictor";
 import type { Logger } from "./logging";
+import { SuggestionController } from "./suggestion/suggestionController";
 
 export function activate(context: vscode.ExtensionContext) {
   const output = vscode.window.createOutputChannel("Sweep Next Edit");
@@ -60,77 +60,24 @@ export function activate(context: vscode.ExtensionContext) {
     };
   }, logger);
 
-  const provider = new NextEditInlineProvider(
-    predictor,
-    getProviderConfig,
-    (doc) => store.getPreviousText(doc),
-    logger
-  );
-
-  const disposable = vscode.languages.registerInlineCompletionItemProvider(
-    [{ scheme: "file" }, { scheme: "untitled" }],
-    provider
-  );
-
-  context.subscriptions.push(disposable);
   context.subscriptions.push(output);
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "sweepNextEdit.applyWindowPrediction",
-      async (args: {
-        uri: string;
-        docVersion: number;
-        startLine: number;
-        endLineExclusive: number;
-        predictedWindow: string;
-      }) => {
-        try {
-          const uri = vscode.Uri.parse(args.uri);
-          const doc = await vscode.workspace.openTextDocument(uri);
-          if (doc.version !== args.docVersion) {
-            logger.warn(`Skipping apply: document version changed (expected=${args.docVersion}, actual=${doc.version}).`);
-            return;
-          }
-
-          const start = new vscode.Position(Math.max(0, args.startLine), 0);
-          const end =
-            args.endLineExclusive < doc.lineCount
-              ? new vscode.Position(Math.max(0, args.endLineExclusive), 0)
-              : doc.lineAt(doc.lineCount - 1).range.end;
-
-          const range = new vscode.Range(start, end);
-          const edit = new vscode.WorkspaceEdit();
-          edit.replace(uri, range, args.predictedWindow);
-
-          const ok = await vscode.workspace.applyEdit(edit);
-          logger.info(`Applied window prediction (ok=${String(ok)}).`);
-        } catch (err) {
-          logger.error("Failed to apply window prediction.", err);
-        }
-      }
-    )
-  );
+  void vscode.commands.executeCommand("setContext", "sweepNextEdit.suggestionActive", false);
 
   context.subscriptions.push(vscode.workspace.onDidOpenTextDocument((d) => store.track(d)));
 
-  let triggerTimer: NodeJS.Timeout | undefined;
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((e) => {
       store.onDidChangeTextDocument(e);
-      const config = getProviderConfig();
-      const editor = vscode.window.activeTextEditor;
-      if (!config.enabled || !editor || editor.document.uri.toString() !== e.document.uri.toString()) return;
+    })
+  );
 
-      if (triggerTimer) clearTimeout(triggerTimer);
-      const debounceMs = vscode.workspace.getConfiguration("sweepNextEdit").get<number>("triggerDebounceMs", 250);
-      triggerTimer = setTimeout(() => {
-        if (isLoggingEnabled()) logger.info("Triggering inline suggest.");
-        void vscode.commands.executeCommand("editor.action.inlineSuggest.trigger").then(
-          () => {},
-          (err) => logger.error("Failed to execute inline suggest trigger command.", err)
-        );
-      }, debounceMs);
+  const controller = new SuggestionController(predictor, logger, (doc) => store.getPreviousText(doc));
+  controller.start();
+  context.subscriptions.push(controller);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("sweepNextEdit.acceptSuggestion", async () => {
+      await controller.acceptSuggestion();
     })
   );
 }

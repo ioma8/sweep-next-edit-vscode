@@ -16,6 +16,19 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "sweepNextEdit.acceptSuggestion",
+        "title": "Sweep Next Edit: Accept Suggestion"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sweepNextEdit.acceptSuggestion",
+        "key": "tab",
+        "when": "editorTextFocus && sweepNextEdit.suggestionActive"
+      }
+    ],
     "configuration": {
       "title": "Sweep Next Edit",
       "properties": {
@@ -55,11 +68,6 @@
           "maximum": 2000,
           "description": "Debounce (ms) after typing before triggering inline suggestions."
         },
-        "sweepNextEdit.ignoreAutomaticTrigger": {
-          "type": "boolean",
-          "default": true,
-          "description": "Ignore VS Code automatic inline completion triggers; only respond to explicit triggers (used by this extension)."
-        },
         "sweepNextEdit.contextFileCount": {
           "type": "number",
           "default": 4,
@@ -78,7 +86,7 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p .",
+    "compile": "rm -rf out && tsc -p .",
     "watch": "tsc -watch -p .",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js"
