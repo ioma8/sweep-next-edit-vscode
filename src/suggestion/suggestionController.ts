@@ -159,6 +159,16 @@ export class SuggestionController implements vscode.Disposable {
         hoverMessage: hover
       }
     ]);
+
+    const autoShowPopup = vscode.workspace.getConfiguration("sweepNextEdit").get<boolean>("autoShowPopup", true);
+    if (autoShowPopup) {
+      setTimeout(() => {
+        void vscode.commands.executeCommand("editor.action.showHover").then(
+          () => {},
+          (err) => this.logger.error("Failed to show hover popup.", err)
+        );
+      }, 0);
+    }
   }
 
   private schedulePrediction(editor: vscode.TextEditor) {
