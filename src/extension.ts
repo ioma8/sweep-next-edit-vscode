@@ -59,6 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
       contextSize: 8192
     };
   }, logger);
+  void predictor.init();
 
   context.subscriptions.push(output);
   void vscode.commands.executeCommand("setContext", "sweepNextEdit.suggestionActive", false);

@@ -22,6 +22,7 @@ export class SuggestionController implements vscode.Disposable {
   private triggerTimer: NodeJS.Timeout | undefined;
   private inFlightAbort: AbortController | undefined;
   private suggestion: Suggestion | undefined;
+  private requestSeq = 0;
 
   constructor(
     private readonly predictor: NextEditPredictor,
@@ -35,11 +36,11 @@ export class SuggestionController implements vscode.Disposable {
   }
 
   start() {
-    this.disposables.push(vscode.window.onDidChangeActiveTextEditor(() => this.clearSuggestion("active editor changed")));
+    this.disposables.push(vscode.window.onDidChangeActiveTextEditor(() => this.invalidate("active editor changed")));
     this.disposables.push(
       vscode.window.onDidChangeTextEditorSelection((e) => {
         if (e.textEditor.document.uri.toString() !== vscode.window.activeTextEditor?.document.uri.toString()) return;
-        this.clearSuggestion("cursor moved");
+        this.invalidate("cursor moved");
       })
     );
 
@@ -95,6 +96,13 @@ export class SuggestionController implements vscode.Disposable {
     if (!this.inFlightAbort) return;
     this.inFlightAbort.abort();
     this.inFlightAbort = undefined;
+  }
+
+  private invalidate(reason: string) {
+    this.requestSeq++;
+    this.clearTimer();
+    this.abortInFlight();
+    this.clearSuggestion(reason);
   }
 
   private clearSuggestion(reason: string) {
@@ -165,20 +173,21 @@ export class SuggestionController implements vscode.Disposable {
   }
 
   private schedulePrediction(editor: vscode.TextEditor) {
-    this.clearTimer();
-    this.abortInFlight();
-    this.clearSuggestion("typing");
+    this.invalidate("typing");
+    const mySeq = this.requestSeq;
 
     const debounceMs = vscode.workspace.getConfiguration("sweepNextEdit").get<number>("triggerDebounceMs", 250);
     this.triggerTimer = setTimeout(() => {
-      void this.runPrediction(editor);
+      void this.runPrediction(editor, mySeq);
     }, debounceMs);
   }
 
-  private async runPrediction(editor: vscode.TextEditor) {
+  private async runPrediction(editor: vscode.TextEditor, requestSeq: number) {
     const doc = editor.document;
     const position = editor.selection.active;
     const startingVersion = doc.version;
+    const startingUri = doc.uri.toString();
+    const startingPosition = new vscode.Position(position.line, position.character);
 
     const contextLines = vscode.workspace.getConfiguration("sweepNextEdit").get<number>("contextLines", 10);
     const span = getWindowLineSpan({ totalLines: doc.lineCount, cursorLine: position.line, contextLines });
@@ -227,6 +236,11 @@ export class SuggestionController implements vscode.Disposable {
     if (abortController.signal.aborted) return;
     if (doc.isClosed) return;
     if (doc.version !== startingVersion) return;
+    if (doc.uri.toString() !== startingUri) return;
+    if (requestSeq !== this.requestSeq) return;
+    const active = vscode.window.activeTextEditor;
+    if (!active || active.document.uri.toString() !== startingUri) return;
+    if (!active.selection.active.isEqual(startingPosition)) return;
     if (predictedWindow === currentWindow) return;
 
     this.showSuggestion(editor, {

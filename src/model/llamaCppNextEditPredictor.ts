@@ -26,6 +26,10 @@ export class LlamaCppNextEditPredictor implements NextEditPredictor {
 
   private readonly getConfig: () => LlamaCppPredictorConfig;
 
+  async init(): Promise<void> {
+    await this.initIfNeeded();
+  }
+
   private async initIfNeeded() {
     if (this.initPromise) return this.initPromise;
 
