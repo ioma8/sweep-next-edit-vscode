@@ -47,12 +47,44 @@ export class LlamaCppNextEditPredictor implements NextEditPredictor {
       try {
         this.logger.info(`Loading model: ${modelPath}`);
         this.llamaModule = await dynamicImport<any>("node-llama-cpp");
+
+        let availableGpuTypes: string[] = [];
+        try {
+          availableGpuTypes = await this.llamaModule.getLlamaGpuTypes();
+        } catch {
+          availableGpuTypes = [];
+        }
+
+        const preferGpuType = (): "cuda" | "metal" | "vulkan" | "auto" => {
+          if (process.platform === "darwin" && availableGpuTypes.includes("metal")) return "metal";
+          if (availableGpuTypes.includes("cuda")) return "cuda";
+          if (availableGpuTypes.includes("vulkan")) return "vulkan";
+          if (availableGpuTypes.includes("metal")) return "metal";
+          return "auto";
+        };
+
+        const selectedGpu = preferGpuType();
+        this.logger.info(`llama.cpp GPU types available: ${availableGpuTypes.join(",") || "<none>"}`);
+        this.logger.info(`llama.cpp selected GPU: ${selectedGpu}`);
+
         const llama = await this.llamaModule.getLlama({
+          gpu: selectedGpu === "auto" ? "auto" : selectedGpu,
           build: "auto",
           logLevel: this.llamaModule.LlamaLogLevel?.warn ?? "warn",
           logger: (_level: any, message: string) => this.logger.info(`[llama] ${message}`)
         });
-        const model = await llama.loadModel({ modelPath, gpuLayers: "auto" });
+
+        let model: any;
+        try {
+          model = await llama.loadModel({
+            modelPath,
+            gpuLayers: selectedGpu === "auto" ? "auto" : "max"
+          });
+        } catch (err) {
+          this.logger.warn("Failed to load model with gpuLayers=max; falling back to gpuLayers=auto.");
+          this.logger.error("gpuLayers=max error details:", err);
+          model = await llama.loadModel({ modelPath, gpuLayers: "auto" });
+        }
         this.context = await model.createContext({ contextSize, sequences: 2 });
         this.logger.info("Model loaded and context created.");
       } catch (err) {
