@@ -23,6 +23,7 @@ export class SuggestionController implements vscode.Disposable {
   private inFlightAbort: AbortController | undefined;
   private suggestion: Suggestion | undefined;
   private requestSeq = 0;
+  private applyingSuggestion = false;
 
   constructor(
     private readonly predictor: NextEditPredictor,
@@ -47,6 +48,7 @@ export class SuggestionController implements vscode.Disposable {
 
     this.disposables.push(
       vscode.workspace.onDidChangeTextDocument((e) => {
+        if (this.applyingSuggestion) return;
         const editor = vscode.window.activeTextEditor;
         if (!editor || editor.document.uri.toString() !== e.document.uri.toString()) return;
         if (!vscode.workspace.getConfiguration("sweepNextEdit").get<boolean>("enabled", true)) return;
@@ -74,6 +76,8 @@ export class SuggestionController implements vscode.Disposable {
       return;
     }
 
+    this.invalidate("accepting");
+    this.applyingSuggestion = true;
     const doc = editor.document;
     const start = new vscode.Position(Math.max(0, this.suggestion.windowStartLine), 0);
     const end =
@@ -83,9 +87,13 @@ export class SuggestionController implements vscode.Disposable {
 
     const edit = new vscode.WorkspaceEdit();
     edit.replace(doc.uri, new vscode.Range(start, end), this.suggestion.predictedWindow);
-    const ok = await vscode.workspace.applyEdit(edit);
-    this.logger.info(`Accepted suggestion (ok=${String(ok)}).`);
-    this.clearSuggestion("accepted");
+    try {
+      const ok = await vscode.workspace.applyEdit(edit);
+      this.logger.info(`Accepted suggestion (ok=${String(ok)}).`);
+    } finally {
+      this.applyingSuggestion = false;
+      this.clearSuggestion("accepted");
+    }
   }
 
   private clearTimer() {
