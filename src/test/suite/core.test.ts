@@ -1,6 +1,7 @@
 import * as assert from "node:assert";
 import { buildPrompt } from "../../core/prompt";
 import { computeRecentDiffSnippet } from "../../core/recentDiff";
+import { toUnifiedDiff } from "../../core/unifiedDiff";
 import { getWindowLineSpan, replaceLineSpan } from "../../core/window";
 
 suite("Core utilities", () => {
@@ -92,5 +93,14 @@ suite("Core utilities", () => {
     const prev = ["a", "b", "c", "d"].join("\n");
     const curr = ["a", "b", "d"].join("\n");
     assert.deepStrictEqual(computeRecentDiffSnippet(prev, curr), { original: "c", updated: "" });
+  });
+
+  test("toUnifiedDiff produces a minimal unified diff", () => {
+    const oldText = ["a", "b", "c", "d"].join("\n") + "\n";
+    const newText = ["a", "b", "X", "d"].join("\n") + "\n";
+    const diff = toUnifiedDiff({ oldText, newText, context: 1 });
+    assert.ok(diff.includes("@@"), "diff should include a hunk header");
+    assert.ok(diff.includes("-c"), "diff should include removed line");
+    assert.ok(diff.includes("+X"), "diff should include added line");
   });
 });

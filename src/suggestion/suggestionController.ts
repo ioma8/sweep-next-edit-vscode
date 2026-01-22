@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { Logger } from "../logging";
 import type { NextEditPredictor } from "../model/nextEditPredictor";
 import { computeRecentDiffSnippet } from "../core/recentDiff";
+import { toUnifiedDiff } from "../core/unifiedDiff";
 import { getWindowLineSpan } from "../core/window";
 
 type Suggestion = {
@@ -131,16 +132,9 @@ export class SuggestionController implements vscode.Disposable {
   private buildHoverMarkdown(currentWindow: string, predictedWindow: string): vscode.MarkdownString {
     const md = new vscode.MarkdownString(undefined, true);
     md.isTrusted = false;
-    const diff = computeRecentDiffSnippet(currentWindow, predictedWindow);
-    if (!diff) return md;
-
-    const originalLines = diff.original.length === 0 ? [] : diff.original.split("\n");
-    const updatedLines = diff.updated.length === 0 ? [] : diff.updated.split("\n");
-    const lines = [
-      ...originalLines.map((l) => `- ${l}`),
-      ...updatedLines.map((l) => `+ ${l}`)
-    ];
-    md.appendCodeblock(lines.join("\n"), "diff");
+    if (computeRecentDiffSnippet(currentWindow, predictedWindow) == null) return md;
+    const unified = toUnifiedDiff({ oldText: currentWindow, newText: predictedWindow, context: 2 });
+    md.appendCodeblock(unified.length === 0 ? "(no changes)" : unified, "diff");
     return md;
   }
 
