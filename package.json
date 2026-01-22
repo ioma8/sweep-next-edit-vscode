@@ -68,11 +68,6 @@
           "maximum": 2000,
           "description": "Debounce (ms) after typing before triggering inline suggestions."
         },
-        "sweepNextEdit.autoShowPopup": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically show the Sweep suggestion popup at the cursor."
-        },
         "sweepNextEdit.contextFileCount": {
           "type": "number",
           "default": 4,

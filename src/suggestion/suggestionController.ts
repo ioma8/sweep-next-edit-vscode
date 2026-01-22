@@ -131,18 +131,16 @@ export class SuggestionController implements vscode.Disposable {
   private buildHoverMarkdown(currentWindow: string, predictedWindow: string): vscode.MarkdownString {
     const md = new vscode.MarkdownString(undefined, true);
     md.isTrusted = false;
-    md.appendMarkdown("**Sweep Next Edit (multiline)**\n\n");
     const diff = computeRecentDiffSnippet(currentWindow, predictedWindow);
-    if (diff) {
-      md.appendMarkdown("Proposed change:\n");
-      md.appendMarkdown("\nOriginal:\n");
-      md.appendCodeblock(diff.original, "");
-      md.appendMarkdown("\nUpdated:\n");
-      md.appendCodeblock(diff.updated, "");
-    } else {
-      md.appendMarkdown("No changes.\n");
-    }
-    md.appendMarkdown("\nPress `Tab` to accept.\n");
+    if (!diff) return md;
+
+    const originalLines = diff.original.length === 0 ? [] : diff.original.split("\n");
+    const updatedLines = diff.updated.length === 0 ? [] : diff.updated.split("\n");
+    const lines = [
+      ...originalLines.map((l) => `- ${l}`),
+      ...updatedLines.map((l) => `+ ${l}`)
+    ];
+    md.appendCodeblock(lines.join("\n"), "diff");
     return md;
   }
 
@@ -160,15 +158,12 @@ export class SuggestionController implements vscode.Disposable {
       }
     ]);
 
-    const autoShowPopup = vscode.workspace.getConfiguration("sweepNextEdit").get<boolean>("autoShowPopup", true);
-    if (autoShowPopup) {
-      setTimeout(() => {
-        void vscode.commands.executeCommand("editor.action.showHover").then(
-          () => {},
-          (err) => this.logger.error("Failed to show hover popup.", err)
-        );
-      }, 0);
-    }
+    setTimeout(() => {
+      void vscode.commands.executeCommand("editor.action.showHover").then(
+        () => {},
+        (err) => this.logger.error("Failed to show hover popup.", err)
+      );
+    }, 0);
   }
 
   private schedulePrediction(editor: vscode.TextEditor) {
