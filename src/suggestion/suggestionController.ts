@@ -3,7 +3,7 @@ import * as path from "node:path";
 import type { Logger } from "../logging";
 import type { NextEditPredictor } from "../model/nextEditPredictor";
 import { computeRecentDiffSnippet } from "../core/recentDiff";
-import { toUnifiedDiff } from "../core/unifiedDiff";
+import { computeInsertedText } from "../core/insertedText";
 import { getWindowLineSpan } from "../core/window";
 
 type Suggestion = {
@@ -133,8 +133,12 @@ export class SuggestionController implements vscode.Disposable {
     const md = new vscode.MarkdownString(undefined, true);
     md.isTrusted = false;
     if (computeRecentDiffSnippet(currentWindow, predictedWindow) == null) return md;
-    const unified = toUnifiedDiff({ oldText: currentWindow, newText: predictedWindow, context: 2 });
-    md.appendCodeblock(unified.length === 0 ? "(no changes)" : unified, "diff");
+    const inserted = computeInsertedText(currentWindow, predictedWindow).trimEnd();
+    if (inserted.length === 0) {
+      md.appendMarkdown("(deletes text)");
+      return md;
+    }
+    md.appendCodeblock(inserted, "");
     return md;
   }
 

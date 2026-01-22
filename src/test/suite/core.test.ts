@@ -1,7 +1,7 @@
 import * as assert from "node:assert";
 import { buildPrompt } from "../../core/prompt";
+import { computeInsertedText } from "../../core/insertedText";
 import { computeRecentDiffSnippet } from "../../core/recentDiff";
-import { toUnifiedDiff } from "../../core/unifiedDiff";
 import { getWindowLineSpan, replaceLineSpan } from "../../core/window";
 
 suite("Core utilities", () => {
@@ -95,12 +95,9 @@ suite("Core utilities", () => {
     assert.deepStrictEqual(computeRecentDiffSnippet(prev, curr), { original: "c", updated: "" });
   });
 
-  test("toUnifiedDiff produces a minimal unified diff", () => {
+  test("computeInsertedText returns only added text", () => {
     const oldText = ["a", "b", "c", "d"].join("\n") + "\n";
     const newText = ["a", "b", "X", "d"].join("\n") + "\n";
-    const diff = toUnifiedDiff({ oldText, newText, context: 1 });
-    assert.ok(diff.includes("@@"), "diff should include a hunk header");
-    assert.ok(diff.includes("-c"), "diff should include removed line");
-    assert.ok(diff.includes("+X"), "diff should include added line");
+    assert.strictEqual(computeInsertedText(oldText, newText), "X\n");
   });
 });
